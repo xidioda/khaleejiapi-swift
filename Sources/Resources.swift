@@ -18,14 +18,24 @@ public final class ValidationResource: @unchecked Sendable {
         public let checks: EmailChecks
         public let suggestion: String?
         public let domain: String
+        public let deliverabilityScore: Int?
+        public let provider: EmailProvider?
+        public let spf: Bool?
+        public let dmarc: Bool?
+        public let normalized: String?
     }
 
     public struct EmailChecks: Decodable {
         public let format: Bool?
-        public let syntax: Bool?
         public let mx: Bool
         public let disposable: Bool
         public let role: Bool
+        public let freeProvider: Bool?
+    }
+
+    public struct EmailProvider: Decodable {
+        public let name: String?
+        public let type: String?
     }
 
     /// Validate an email address
@@ -40,9 +50,33 @@ public final class ValidationResource: @unchecked Sendable {
         public let valid: Bool
         public let phone: String
         public let formatted: String?
-        public let countryCode: String?
         public let type: String?
-        public let carrier: String?
+        public let country: PhoneCountry?
+        public let carrier: PhoneCarrier?
+        public let formats: PhoneFormats?
+        public let areaCode: String?
+        public let areaName: String?
+        public let portingNote: String?
+        public let nationalNumber: String?
+    }
+
+    public struct PhoneCountry: Decodable {
+        public let name: String?
+        public let code: String?
+        public let dialCode: String?
+    }
+
+    public struct PhoneCarrier: Decodable {
+        public let name: String?
+        public let mcc: String?
+        public let mnc: String?
+    }
+
+    public struct PhoneFormats: Decodable {
+        public let e164: String?
+        public let international: String?
+        public let local: String?
+        public let rfc3966: String?
     }
 
     /// Validate a phone number
@@ -74,13 +108,31 @@ public final class ValidationResource: @unchecked Sendable {
 
     public struct VATResult: Decodable {
         public let valid: Bool
-        public let trn: String
-        public let country: String?
+        public let trn: String?
+        public let tin: String?
+        public let country: VATCountry?
+        public let authority: VATAuthority?
+        public let vatRate: Double?
+        public let vatRateNote: String?
+        public let format: String?
+        public let checkDigitValid: Bool?
+    }
+
+    public struct VATCountry: Decodable {
+        public let code: String?
+        public let name: String?
+        public let nameAr: String?
+    }
+
+    public struct VATAuthority: Decodable {
+        public let name: String?
+        public let nameAr: String?
+        public let website: String?
     }
 
     /// Validate a VAT/TRN number
-    public func validateVAT(_ trn: String) async throws -> VATResult {
-        let response: APIResponse<VATResult> = try await client.get("/vat/validate", params: ["trn": trn])
+    public func validateVAT(_ trn: String, countryCode: String? = nil) async throws -> VATResult {
+        let response: APIResponse<VATResult> = try await client.get("/vat/validate", params: ["trn": trn, "country": countryCode])
         return response.data
     }
 
@@ -88,14 +140,39 @@ public final class ValidationResource: @unchecked Sendable {
 
     public struct EmiratesIDResult: Decodable {
         public let valid: Bool
-        public let id: String
+        public let id: String?
+        public let emiratesId: String?
+        public let formatted: String?
+        public let components: EmiratesIDComponents?
+        public let details: EmiratesIDDetails?
+        public let authority: EmiratesIDAuthority?
+        public let message: String?
+    }
+
+    public struct EmiratesIDComponents: Decodable {
         public let nationalityCode: String?
+        public let countryCode: String?
         public let birthYear: Int?
+        public let sequenceNumber: String?
+        public let checkDigit: Int?
+    }
+
+    public struct EmiratesIDDetails: Decodable {
+        public let birthYear: Int?
+        public let estimatedAge: Int?
+        public let ageRange: String?
+        public let generation: String?
+    }
+
+    public struct EmiratesIDAuthority: Decodable {
+        public let name: String?
+        public let nameAr: String?
+        public let website: String?
     }
 
     /// Validate a UAE Emirates ID
     public func validateEmiratesID(_ id: String) async throws -> EmiratesIDResult {
-        let response: APIResponse<EmiratesIDResult> = try await client.get("/validation/emirates-id", params: ["id": id])
+        let response: APIResponse<EmiratesIDResult> = try await client.get("/emirates-id/validate", params: ["id": id])
         return response.data
     }
 
@@ -107,7 +184,27 @@ public final class ValidationResource: @unchecked Sendable {
         public let type: String?
         public let typeAr: String?
         public let nationality: String?
+        public let nationalityAr: String?
+        public let description: String?
+        public let descriptionAr: String?
+        public let details: SaudiIDDetails?
+        public let authority: SaudiIDAuthority?
         public let errors: [String]?
+    }
+
+    public struct SaudiIDDetails: Decodable {
+        public let estimatedBirthYearHijri: Int?
+        public let estimatedBirthYearGregorian: Int?
+        public let estimatedAge: Int?
+        public let ageRange: String?
+        public let generation: String?
+        public let checkDigit: Int?
+    }
+
+    public struct SaudiIDAuthority: Decodable {
+        public let name: String?
+        public let nameAr: String?
+        public let website: String?
     }
 
     public struct SaudiIDBatchResult: Decodable {
@@ -123,14 +220,14 @@ public final class ValidationResource: @unchecked Sendable {
 
     /// Validate a Saudi National ID or Iqama
     public func validateSaudiID(_ id: String) async throws -> SaudiIDResult {
-        let response: APIResponse<SaudiIDResult> = try await client.get("/validation/saudi-id", params: ["id": id])
+        let response: APIResponse<SaudiIDResult> = try await client.get("/saudi-id/validate", params: ["id": id])
         return response.data
     }
 
     /// Batch validate Saudi IDs (max 100)
     public func validateSaudiIDBatch(_ ids: [String]) async throws -> SaudiIDBatchResult {
         struct Body: Encodable { let ids: [String] }
-        let response: APIResponse<SaudiIDBatchResult> = try await client.post("/validation/saudi-id", body: Body(ids: ids))
+        let response: APIResponse<SaudiIDBatchResult> = try await client.post("/saudi-id/validate", body: Body(ids: ids))
         return response.data
     }
 }
@@ -176,15 +273,48 @@ public final class GeoResource: @unchecked Sendable {
     }
 
     public struct GeocodeResult: Decodable {
-        public let address: String?
-        public let latitude: Double
-        public let longitude: Double
-        public let country: String?
+        public let results: [GeocodeItem]
+        public let attribution: String?
     }
 
-    /// Geocode an address
-    public func geocode(address: String) async throws -> GeocodeResult {
-        let response: APIResponse<GeocodeResult> = try await client.get("/geocode", params: ["address": address])
+    public struct GeocodeItem: Decodable {
+        public let name: String?
+        public let nameAr: String?
+        public let lat: Double
+        public let lng: Double
+        public let country: String?
+        public let countryAr: String?
+        public let countryCode: String?
+        public let type: String?
+        public let address: GeocodeAddress?
+        public let osmId: Int?
+        public let importance: Double?
+        public let boundingBox: GeocodeBoundingBox?
+    }
+
+    public struct GeocodeAddress: Decodable {
+        public let road: String?
+        public let neighbourhood: String?
+        public let city: String?
+        public let state: String?
+        public let postcode: String?
+        public let full: String?
+    }
+
+    public struct GeocodeBoundingBox: Decodable {
+        public let south: Double
+        public let north: Double
+        public let west: Double
+        public let east: Double
+    }
+
+    /// Geocode an address or coordinates
+    public func geocode(q: String, country: String? = nil, lang: String? = nil) async throws -> GeocodeResult {
+        let response: APIResponse<GeocodeResult> = try await client.get("/geocode", params: [
+            "q": q,
+            "country": country,
+            "lang": lang,
+        ])
         return response.data
     }
 }
@@ -236,22 +366,48 @@ public final class FinanceResource: @unchecked Sendable {
 
     public struct HolidaysResult: Decodable {
         public let country: String
+        public let countryName: String?
         public let year: Int
+        public let weekends: [String]?
         public let holidays: [Holiday]
+        public let totalDays: Int?
+        public let availableYears: [Int]?
+        public let nextHoliday: NextHoliday?
     }
 
     public struct Holiday: Decodable {
         public let name: String
         public let nameAr: String?
         public let date: String
+        public let endDate: String?
         public let type: String
+        public let sector: String?
+        public let dayOfWeek: String?
+        public let daysUntil: Int?
+        public let isPast: Bool?
+        public let note: String?
+    }
+
+    public struct NextHoliday: Decodable {
+        public let name: String?
+        public let date: String?
+        public let daysUntil: Int?
     }
 
     /// Get public holidays for a GCC country
-    public func getHolidays(country: String = "AE", year: Int? = nil) async throws -> HolidaysResult {
+    public func getHolidays(
+        country: String = "AE",
+        year: Int? = nil,
+        mode: String? = nil,
+        date: String? = nil,
+        month: Int? = nil
+    ) async throws -> HolidaysResult {
         let response: APIResponse<HolidaysResult> = try await client.get("/holidays", params: [
             "country": country,
             "year": year.map { String($0) },
+            "mode": mode,
+            "date": date,
+            "month": month.map { String($0) },
         ])
         return response.data
     }
@@ -480,16 +636,44 @@ public final class UtilityResource: @unchecked Sendable {
         public let riskScore: Int
         public let riskLevel: String
         public let recommendation: String?
+        public let signals: [FraudSignal]?
+        public let ipIntelligence: FraudIpIntelligence?
+        public let crossFieldAnalysis: [FraudCrossField]?
+    }
+
+    public struct FraudSignal: Decodable {
+        public let field: String?
+        public let risk: String?
+        public let score: Int?
+        public let reason: String?
+    }
+
+    public struct FraudIpIntelligence: Decodable {
+        public let country: String?
+        public let isTorExitNode: Bool?
+        public let isAnonymousVpn: Bool?
+        public let isPublicProxy: Bool?
+        public let isHostingProvider: Bool?
+        public let isResidentialProxy: Bool?
+        public let isp: String?
+        public let organization: String?
+    }
+
+    public struct FraudCrossField: Decodable {
+        public let type: String?
+        public let risk: String?
+        public let detail: String?
     }
 
     /// Check for fraud
-    public func fraudCheck(ip: String? = nil, email: String? = nil, phone: String? = nil) async throws -> FraudResult {
+    public func fraudCheck(ip: String? = nil, email: String? = nil, phone: String? = nil, name: String? = nil) async throws -> FraudResult {
         struct Body: Encodable {
             let ip: String?
             let email: String?
             let phone: String?
+            let name: String?
         }
-        let response: APIResponse<FraudResult> = try await client.post("/fraud/check", body: Body(ip: ip, email: email, phone: phone))
+        let response: APIResponse<FraudResult> = try await client.post("/fraud/check", body: Body(ip: ip, email: email, phone: phone, name: name))
         return response.data
     }
 

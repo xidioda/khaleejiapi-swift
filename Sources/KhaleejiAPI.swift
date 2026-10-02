@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 // MARK: - Client Configuration
 
@@ -115,8 +118,8 @@ public final class KhaleejiAPI: @unchecked Sendable {
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.timeoutIntervalForRequest = timeout
         sessionConfig.httpAdditionalHeaders = [
-            "X-API-Key": apiKey,
-            "User-Agent": "KhaleejiAPI-Swift/1.0.0",
+            "Authorization": "Bearer \(apiKey)",
+            "User-Agent": "KhaleejiAPI-Swift/1.1.0",
             "Accept": "application/json",
         ]
         self.session = URLSession(configuration: sessionConfig)
@@ -127,8 +130,8 @@ public final class KhaleejiAPI: @unchecked Sendable {
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.timeoutIntervalForRequest = config.timeout
         sessionConfig.httpAdditionalHeaders = [
-            "X-API-Key": config.apiKey,
-            "User-Agent": "KhaleejiAPI-Swift/1.0.0",
+            "Authorization": "Bearer \(config.apiKey)",
+            "User-Agent": "KhaleejiAPI-Swift/1.1.0",
             "Accept": "application/json",
         ]
         self.session = URLSession(configuration: sessionConfig)
